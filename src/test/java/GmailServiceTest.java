@@ -8,7 +8,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -28,10 +27,11 @@ class GmailServiceTest {
     private static InputStream inputStream;
     private static Gmail service;
 
-    GmailService gmailService;
+    private static GmailService gmailService;
 
     @BeforeAll
     static void setUp() throws GeneralSecurityException, IOException {
+
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         try {
             prop = new Properties();
@@ -40,17 +40,21 @@ class GmailServiceTest {
 
             if (inputStream != null) {
                 prop.load(inputStream);
+                gmailService = new GmailService(prop);
+                service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, gmailService.getCredentials((HTTP_TRANSPORT)))
+                        .setApplicationName(prop.getProperty(propApplicationName))
+                        .build();
             } else {
                 throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
             }
         } catch (Exception e) {
             System.out.println("Exception: " + e);
         } finally {
-            inputStream.close();
+            if (inputStream != null) {
+                inputStream.close();
+            }
         }
-        service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, GmailService.getCredentials((HTTP_TRANSPORT)))
-                .setApplicationName(prop.getProperty(propApplicationName))
-                .build();
+
     }
 
     @AfterEach
@@ -58,11 +62,11 @@ class GmailServiceTest {
     }
 
     @ParameterizedTest
-    @CsvFileSource(resources = "two-column.csv", numLinesToSkip = 1)
+    @CsvFileSource(resources = "validEmails.csv", numLinesToSkip = 1)
     void validDestinationTest(String emailTo,String emailFrom,String emailSubject,String emailBodyText) throws Exception {
-        Message message = GmailService.
+        Message message = gmailService.
         sendMessage
-        (service, prop.getProperty("userId"), GmailService.createEmail(emailTo, emailFrom, emailSubject, emailBodyText));
+        (service, prop.getProperty("userId"), gmailService.createEmail(emailTo, emailFrom, emailSubject, emailBodyText));
         System.out.println("Waiting for email validation...");
         TimeUnit.SECONDS.sleep(5);
         assertFalse(GmailService.isBounced(service, message.getThreadId()),"Message for"+emailTo+" has received");
@@ -72,9 +76,9 @@ class GmailServiceTest {
     @ParameterizedTest
     @CsvFileSource(resources = "invalidEmails.csv", numLinesToSkip = 1)
     void inValidDestinationTest(String emailTo,String emailFrom,String emailSubject,String emailBodyText) throws Exception {
-        Message message = GmailService.
+        Message message = gmailService.
                 sendMessage
-                        (service, prop.getProperty("userId"), GmailService.createEmail(emailTo, emailFrom, emailSubject, emailBodyText));
+                        (service, prop.getProperty("userId"), gmailService.createEmail(emailTo, emailFrom, emailSubject, emailBodyText));
         System.out.println("Waiting for email validation...");
         TimeUnit.SECONDS.sleep(5);
         assertTrue(GmailService.isBounced(service, message.getThreadId()),"The email account that you tried to reach does not exist: "+emailTo);
