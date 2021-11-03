@@ -24,31 +24,34 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class GmailService {
-    Properties prop;
-    public static void main(String[] args) throws IOException, GeneralSecurityException {
-        // Build a new authorized API client service.
-        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        Gmail service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+    private static Properties prop;
+    private static InputStream inputStream;
+    private static final String propFileName = "config.properties";
+
+    private static Gmail service;
+
+    GmailService() throws IOException {
         try {
-            Message message = GmailService.sendMessage(service, "me", createEmail("bizybone3s11333s3315@gmail.com", "eldariko15@gmail.com", "Hello", "Whats up??"));
-            System.out.println("Waiting for email validation...");
-            TimeUnit.SECONDS.sleep(5);
-            String response = isBounced(service, message.getThreadId()) ?  "The email account that you tried to reach does not exist" : "Message received";
-            System.out.println(response);
+            prop = new Properties();
+            inputStream = GmailService.class.getClassLoader().getResourceAsStream(propFileName);
+            if (inputStream != null) {
+                prop.load(inputStream);
+            } else {
+                throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Exception: " + e);
+        } finally {
+            inputStream.close();
         }
     }
 
-    private static final String APPLICATION_NAME = "Gmail automatic Registration";
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
+    private static final String TOKENS_DIRECTORY_PATH = prop.getProperty("TOKENS_DIRECTORY_PATH");
 
 
     private static final List<String> SCOPES = Arrays.asList(new String[]{GmailScopes.GMAIL_SEND, GmailScopes.GMAIL_READONLY});
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    private static final String CREDENTIALS_FILE_PATH = prop.getProperty("CREDENTIALS_FILE_PATH");
 
     /**
      * Creates an authorized Credential object.
@@ -158,19 +161,4 @@ public class GmailService {
     }
 
 
-//    public static User createUser(Directory directory) throws IOException {
-//        User user = new User();
-//        // populate are the required fields only
-//        UserName name = new UserName();
-//        name.setFamilyName("Yaacobi");
-//        name.setGivenName("Eldar");
-//        user.setName(name);
-//        user.setPassword("password101");
-//        user.setPrimaryEmail("eldarikoexample@gmail.com");
-//
-//        // requires DirectoryScopes.ADMIN_DIRECTORY_USER scope
-//        user = directory.users().insert(user).execute();
-//
-//        return user;
-//    }
 }
